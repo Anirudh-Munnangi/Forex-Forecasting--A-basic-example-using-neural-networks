@@ -1,0 +1,141 @@
+clear all
+close all
+clc
+%% importing data
+A=importdata('ind_source.xls');
+%% normalizing data
+An=(A.Sheet1 - (min(A.Sheet1)))/(max(A.Sheet1)-min(A.Sheet1));
+data=An(63:429);
+%% rearranging data
+t=length(data)-7;
+for i=1:t
+    table(i,1:7)=data(i:(i+6));
+end
+%% training the neural network
+rate=0.5;
+w=rand(10,7);
+c=rand(1,10);
+si=rand(1,10);
+for out=1:100
+    for in=1:t
+      %calculating sigma products before applying basis function
+       for i=1:10
+       sigma(i)=w(i,1)+(w(i,2:7))*((table(in,1:6))');
+       end
+       d=sum((table(in,1:6)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:10
+          inside=(dsq-c(i))/(si(i));
+          insq=(inside)^2;
+          psi(i)=exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:10
+          prod(i)=sigma(i)*psi(i);
+      end
+      y(in)=sum(prod);
+      % calculation of error
+      err(in)=table(in,7)-y(in);
+      errsq(in)=(err(in))^2;
+      mape(in)=abs((err(in))/(table(in,7)));
+      % updating parameters
+    % updating biases
+    % short cut wala w(1:10,1)=w(1:10,1)+rate*err(in)*psi(1:10);
+    for i=1:10
+        w(i,1)=w(i,1)+rate*err(in)*psi(i);
+    end
+    % updating weights
+    for i=1:10
+        for j=2:7
+            w(i,j)=w(i,j)+rate*err(in)*psi(i)*table(in,(j-1));
+        end
+    end
+    % updating c
+    for i=1:10
+        sig=w(i,1)+ (w(i,2:7))*((table(in,1:6))');
+        del=2*(((dsq-c(i))^2)/((si(i))^3))*(exp((-1*((dsq-c(i))^2))/((si(i))^2)));
+        pro=rate*(err(in))*sig*del;
+        si(i)=si(i)+pro;
+    end
+    
+    % updating si
+    for i=1:10
+        sig=w(i,1)+ (w(i,2:7))*((table(in,1:6))');
+        del=4*((c(i))/((si(i))^2))*(exp((-1*((dsq-c(i))^2))/((si(i))^2)));
+        pro=rate*(err(in))*sig*del;
+        c(i)=c(i)+pro;
+    end
+    end
+     msep(out)=((sum(errsq))/100);
+     mapep(out)=((sum(mape))/100);
+end
+
+%% plotting results of training
+figure
+plot(A.Sheet1)
+title(' original data used for training');
+figure
+hold on
+plot(y,'b');
+plot(table(1:t,7), 'r');
+title( ' network output versus original output during training ' );
+legend(' network output','original output');
+figure
+plot(err);
+title(' error between original and predicted during training ');
+figure
+plot(1:100,msep);
+title('rmse plot wrt iterations during trainng');
+figure
+plot(1:100,mapep);
+title(' mape plot wrt iterations during training');
+%% testing the network
+    datan=An(430:630);
+    t=length(datan)-7;
+     for i=1:t
+       tabletest(i,1:7)=datan(i:(i+6));
+     end
+    ynew=[];
+    for out=1:1
+     for in=1:t
+        %calculating sigma products before applying basis function
+       for i=1:10
+       sigma(i)=w(i,1)+(w(i,2:7))*((tabletest(in,1:6))');
+       end
+       d=sum((tabletest(in,1:6)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:10
+          inside=(dsq-c(i))/(si(i));
+          insq=(inside)^2;
+          psi(i)=exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:10
+          prod(i)=sigma(i)*psi(i);
+      end
+      ynew(in)=sum(prod);
+      errtest(in)=tabletest(in,7)-ynew(in);
+      errsqtest(in)=((errtest(in))^2);
+      mapetest(in)=abs((errtest(in))/(tabletest(in,7)));
+     end
+     mseptest(out)=((sum(errsqtest))/100);
+     mapeptest(out)=((sum(mapetest))/100);
+    end
+%% plotting results of testing
+figure
+hold on
+plot(tabletest(1:t,7),'r');
+plot(ynew,'b');
+title(' network output versus original during testing ');
+legend('original output','network output');
+figure
+plot(errtest)
+title(' errror of testing ');
+figure
+plot(1:100,mseptest);
+title('rmse plot wrt iterations during testing');
+figure
+plot(1:100,mapeptest);
+title('mape plot wrt iterations during testing');

@@ -1,0 +1,473 @@
+% changed the value of dsq's by (x-b)/a
+% updated the values of ai and bi
+% derivatives changed
+clear all
+close all
+clc
+tic
+%% importing data
+A=importdata('ind_source_full.xls');
+%% normalizing data
+An=(A.Sheet1 - (min(A.Sheet1)))/(max(A.Sheet1)-min(A.Sheet1));
+data=An(1:1200);
+%% rearranging data
+t=length(data)-7;
+for i=1:t
+    table(i,1:6)=data(i:(i+5));
+    table(i,7)=((sum(table(i,1:6)))/6);
+    table(i,8)=data(i+6);
+end
+%% training the neural network
+wls=7;
+outerlen=100;
+rate=0.72;
+aorig=rand(1,wls);
+borig=rand(1,wls);
+a1=rand(1,wls);
+b1=rand(1,wls);
+a2=rand(1,wls);
+b2=rand(1,wls);
+worig=rand(wls,8);
+corig=rand(1,wls);
+siorig=rand(1,wls);
+w1=rand(wls,8);
+c1=rand(1,wls);
+si1=rand(1,wls);
+w2=rand(wls,8);
+c2=rand(1,wls);
+si2=rand(1,wls);
+% cfzh=rand(1,7);
+% sifzh=rand(1,7);
+% cfzl(1:7)=(ones(1,7)-cfzh)/100;
+% sifzl(1:7)=(ones(1,7)-sifzh)/100;
+cfz=rand(1,14);
+sifz=rand(1,14);
+
+for out=1:outerlen
+    for in=1:t
+        %calculating sigma products before applying basis function 
+        
+        for i=1:wls
+       sigma(i)=worig(i,1)+(worig(i,2:8))*((table(in,1:7))');
+       end
+       d=sum((table(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-borig(i))/(aorig(i)));
+          inside=(dsq-corig(i))/(siorig(i));
+          insq=(inside)^2;
+          psiorig(i)=((abs((aorig(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psiorig(i);
+      end
+      yorig(in)=sum(prod);
+      
+       % calculation of error of only llwnn
+      errorig(in)=table(in,8)-yorig(in);
+      errsqorig(in)=(errorig(in))^2;
+      mapeorig(in)=((abs((errorig(in))/(table(in,8))))*100);
+      
+      % updating biases
+    % short cut wala w(1:10,1)=w(1:10,1)+rate*err(in)*psi(1:10);
+    for i=1:wls
+        worig(i,1)=worig(i,1)+rate*errorig(in)*psiorig(i);
+        aorig(1,i)=aorig(1,i)+rate*errorig(in)*psiorig(i);
+        borig(1,i)=borig(1,i)+rate*errorig(in)*psiorig(i);
+    end
+    % updating weights
+    for i=1:wls
+        for j=2:8
+            worig(i,j)=worig(i,j)+rate*errorig(in)*psiorig(i)*table(in,(j-1));
+        end
+    end
+    % updating si
+    for i=1:wls
+        modi(i)=((dsq-borig(i))/(aorig(i)));
+        sig=worig(i,1)+ (worig(i,2:8))*((table(in,1:7))');
+        del=2*((corig(i)-modi(i))^2)/(((siorig(i))^3)*(exp(((corig(i)-modi(i))^2)/((siorig(i))^2))));
+        pro=((abs((aorig(i))))^(-1/2))*rate*(errorig(in))*sig*del;
+        siorig(i)=siorig(i)+pro;
+    end
+    
+    % updating c
+    for i=1:wls
+        modi(i)=((dsq-borig(i))/(aorig(i)));
+        sig=worig(i,1)+ (worig(i,2:8))*((table(in,1:7))');
+        del=2*(modi(i)-corig(i))/(((siorig(i))^2)*(exp(((corig(i)-modi(i))^2)/((siorig(i))^2))));
+        pro=((abs((aorig(i))))^(-1/2))*rate*(errorig(in))*sig*del;
+        corig(i)=corig(i)+pro;
+    end
+      
+   %---------------------------------------------------------------------     
+      %calculating sigma products before applying basis function of
+      %neurofuzzy part
+       for i=1:wls
+       sigma(i)=w1(i,1)+(w1(i,2:8))*((table(in,1:7))');
+       end
+       d=sum((table(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-b1(i))/(a1(i)));
+          inside=(dsq-c1(i))/(si1(i));
+          insq=(inside)^2;
+          psi1(i)=((abs((a1(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psi1(i);
+      end
+      y1(in)=sum(prod);
+       
+      % calculating sigma products before applying basis function
+       for i=1:wls
+       sigma(i)=w2(i,1)+(w2(i,2:8))*((table(in,1:7))');
+       end
+       d=sum((table(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-b2(i))/(a2(i)));
+          inside=(dsq-c2(i))/(si2(i));
+          insq=(inside)^2;
+          psi2(i)=((abs((a2(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psi2(i);
+      end
+      y2(in)=sum(prod);
+      
+      % FUZZY part
+      
+      x(1:7)=table(in,1:7);
+%       x1f1(in)=exp((-1)*((x(1)-cfzh(1))^2)/((sifzh(1))^2)); % c1 to c12, si1 to si12 all random
+%       x1f2(in)=exp((-1)*((x(1)-cfzl(1))^2)/((sifzl(1))^2)); % or 1 - above
+%       x2f1(in)=exp((-1)*((x(2)-cfzh(2))^2)/((sifzh(2))^2));
+%       x2f2(in)=exp((-1)*((x(2)-cfzl(2))^2)/((sifzl(2))^2));
+%       x3f1(in)=exp((-1)*((x(3)-cfzh(3))^2)/((sifzh(3))^2));
+%       x3f2(in)=exp((-1)*((x(3)-cfzl(3))^2)/((sifzl(3))^2));
+%       x4f1(in)=exp((-1)*((x(4)-cfzh(4))^2)/((sifzh(4))^2));
+%       x4f2(in)=exp((-1)*((x(4)-cfzl(4))^2)/((sifzl(4))^2));
+%       x5f1(in)=exp((-1)*((x(5)-cfzh(5))^2)/((sifzh(5))^2));
+%       x5f2(in)=exp((-1)*((x(5)-cfzl(5))^2)/((sifzl(5))^2));
+%       x6f1(in)=exp((-1)*((x(6)-cfzh(6))^2)/((sifzh(6))^2));
+%       x6f2(in)=exp((-1)*((x(6)-cfzl(6))^2)/((sifzl(6))^2));
+%       x7f1(in)=exp((-1)*((x(7)-cfzh(7))^2)/((sifzh(7))^2));
+%       x7f2(in)=exp((-1)*((x(7)-cfzl(7))^2)/((sifzl(7))^2));
+
+      x1f1(in)=exp((-1)*((x(1)-cfz(1))^2)/((sifz(1))^2)); 
+      x1f2(in)=1-exp((-1)*((x(1)-cfz(2))^2)/((sifz(2))^2));
+      x2f1(in)=exp((-1)*((x(2)-cfz(3))^2)/((sifz(3))^2));
+      x2f2(in)=1-exp((-1)*((x(2)-cfz(4))^2)/((sifz(4))^2));
+      x3f1(in)=exp((-1)*((x(3)-cfz(5))^2)/((sifz(5))^2));
+      x3f2(in)=1-exp((-1)*((x(3)-cfz(6))^2)/((sifz(6))^2));
+      x4f1(in)=exp((-1)*((x(4)-cfz(7))^2)/((sifz(7))^2));
+      x4f2(in)=1-exp((-1)*((x(4)-cfz(8))^2)/((sifz(8))^2));
+      x5f1(in)=exp((-1)*((x(5)-cfz(9))^2)/((sifz(9))^2));
+      x5f2(in)=1-exp((-1)*((x(5)-cfz(10))^2)/((sifz(10))^2));
+      x6f1(in)=exp((-1)*((x(6)-cfz(11))^2)/((sifz(11))^2));
+      x6f2(in)=1-exp((-1)*((x(6)-cfz(12))^2)/((sifz(12))^2));
+      x7f1(in)=exp((-1)*((x(7)-cfz(13))^2)/((sifz(13))^2));
+      x7f2(in)=1-exp((-1)*((x(7)-cfz(14))^2)/((sifz(14))^2));
+
+      
+      pf1(in)=min([x1f1(in) x2f1(in) x3f1(in) x4f1(in) x5f1(in) x6f1(in) x7f1(in)]);
+      pf2(in)=min([x1f2(in) x2f2(in) x3f2(in) x4f2(in) x5f2(in) x6f2(in) x7f2(in)]);
+      
+      Ynet1(in)=pf1(in)*y1(in);
+      Ynet2(in)=pf2(in)*y2(in);
+      Ynet(in)=Ynet1(in)+Ynet2(in);
+      Ynet(in)=Ynet(in)/(pf1(in)+pf2(in));
+      
+      % calculation of error of first part
+      err1(in)=table(in,8)-Ynet(in);
+      errsq1(in)=(err1(in))^2;
+      mape1(in)=(abs((err1(in))/(table(in,8))))*100;
+      % updating parameters
+    % updating biases
+    % short cut wala w(1:10,1)=w(1:10,1)+rate*err(in)*psi(1:10);
+    for i=1:wls
+        w1(i,1)=w1(i,1)+rate*err1(in)*psi(i);
+    end
+    % updating weights
+    for i=1:wls
+        for j=2:8
+            w1(i,j)=w1(i,j)+rate*err1(in)*psi1(i)*table(in,(j-1));
+            a1(1,i)=a1(1,i)+rate*err1(in)*psi1(i);
+            b1(1,i)=b1(1,i)+rate*err1(in)*psi1(i);
+        end
+    end
+    % updating si
+    for i=1:wls
+        modi(i)=((dsq-b1(i))/(a1(i)));
+        sig=w1(i,1)+ (w1(i,2:8))*((table(in,1:7))');
+        del=2*((c1(i)-modi(i))^2)/(((si1(i))^3)*(exp(((c1(i)-modi(i))^2)/((si1(i))^2))));
+        pro=((abs((a1(i))))^(-1/2))*rate*(err1(in))*sig*del;
+        si1(i)=si1(i)+pro;
+    end
+     % updating c
+    for i=1:wls
+        modi(i)=((dsq-b1(i))/(a1(i)));
+        sig=w1(i,1)+ (w1(i,2:8))*((table(in,1:7))');
+        del=2*(modi(i)-c1(i))/(((si1(i))^2)*(exp(((c1(i)-modi(i))^2)/((si1(i))^2))));
+        pro=((abs((a1(i))))^(-1/2))*rate*(err1(in))*sig*del;
+        c1(i)=c1(i)+pro;
+    end
+
+      % calculation of error of second part
+      err2(in)=table(in,8)-Ynet(in);
+      errsq2(in)=(err2(in))^2;
+      mape2(in)=(abs((err2(in))/(table(in,8))))*100;
+      % updating parameters
+    % updating biases
+    % short cut wala w(1:10,1)=w(1:10,1)+rate*err(in)*psi(1:10);
+    for i=1:wls
+        w2(i,1)=w2(i,1)+rate*err2(in)*psi2(i);
+        a2(1,i)=a2(1,i)+rate*err2(in)*psi2(i);
+        b2(1,i)=b2(1,i)+rate*err2(in)*psi2(i);
+    end
+    % updating weights
+    for i=1:wls
+        for j=2:8
+            w2(i,j)=w2(i,j)+rate*err2(in)*psi(i)*table(in,(j-1));
+        end
+    end
+    % updating si
+    for i=1:wls
+        modi(i)=((dsq-b2(i))/(a2(i)));
+        sig=w2(i,1)+ (w2(i,2:8))*((table(in,1:7))');
+        del=2*((c2(i)-modi(i))^2)/(((si2(i))^3)*(exp(((c2(i)-modi(i))^2)/((si2(i))^2))));
+        pro=((abs((a2(i))))^(-1/2))*rate*(err2(in))*sig*del;
+        si2(i)=si2(i)+pro;
+    end
+    
+   % updating c
+    for i=1:wls
+        modi(i)=((dsq-b2(i))/(a2(i)));
+        sig=w2(i,1)+ (w2(i,2:8))*((table(in,1:7))');
+        del=2*(modi(i)-c2(i))/(((si2(i))^2)*(exp(((c2(i)-modi(i))^2)/((si2(i))^2))));
+        pro=((abs((a2(i))))^(-1/2))*rate*(err2(in))*sig*del;
+        c2(i)=c2(i)+pro;
+    end
+    % calculation of error of the system as a whole
+    errtot(in)=table(in,8)-Ynet(in);
+    errsqtot(in)=((errtot(in))^2);
+    mapetot(in)=(abs((errtot(in))/(table(in,8))))*100;
+    end
+     msep1(out)=sqrt((sum(errsq1))/t);
+     mapep1(out)=((sum(mape1)))/t;
+     msep2(out)=sqrt((sum(errsq2))/t);
+     mapep2(out)=((sum(mape2)))/t;
+     mseporig(out)=sqrt((sum(errsqorig))/t);
+     mapeporig(out)=((sum(mapeorig)))/t;
+     mseptot(out)=sqrt((sum(errsqtot))/t);
+     mapeptot(out)=((sum(mapetot)))/t;
+end
+
+%% plotting results of training
+figure
+plot(A.Sheet1)
+title(' Exchange rate : Dollar in INR www.oanda.com');
+ylabel('Original data value');
+xlabel('No of input patterns');
+
+figure
+hold on
+plot(yorig,'k');
+plot(Ynet,'b');
+plot(table(1:t,8), 'r');
+title( ' Comparision of estimated values wrt Normalized data set' );
+legend('llwnn output','llwnn+neurofuzzy output','original output');
+ylabel('Normalized data value');
+xlabel('No of imput patterns');
+hold off
+
+ figure
+ hold on
+ plot(errorig,'b');
+ plot(errtot,'r');
+ legend('llwnn error', 'llwnn + neurofuzzy error');
+ title(' error  ');
+ ylabel('magnitude');
+ xlabel('No of input patterns');
+ hold off
+ 
+ figure
+ hold on
+ plot(mseporig,'b');
+ plot(mseptot,'r');
+ legend('llwnn rmse','llwnn+neurofuzzy rmse');
+ title('rmse plot wrt iterations during trainng');
+ ylabel('magnitude');
+ xlabel('No of iterations');
+ hold off
+ 
+ figure
+ hold on
+ plot(mapeporig,'b');
+ plot(mapeptot,'r');
+ title(' mape plot wrt iterations during training');
+ legend('llwnn mape', 'llwnn+neurofuzzy mape');
+ ylabel('magnitude');
+ xlabel('No of iterations');
+ hold off
+% %% testing the network
+    datan=An(2100:2400);
+     t=length(datan)-7;
+     for i=1:t
+         tabletest(i,1)=datan(i);
+         tabletest(i,2:6)=[datan(i+1) datan(i+2) datan(i+4) datan(i+5) datan(i+6)];
+         tabletest(i,7)=(sum(tabletest(i,i:6))/6);
+         tabletest(i,8)=datan(i+7);
+     end
+     
+      for in=1:t
+        %calculating sigma products before applying basis function 
+        
+        for i=1:wls
+       sigma(i)=worig(i,1)+(worig(i,2:8))*((tabletest(in,1:7))');
+       end
+       d=sum((tabletest(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-borig(i))/(aorig(i)));
+          inside=(dsq-corig(i))/(siorig(i));
+          insq=(inside)^2;
+          psi(i)=((abs((aorig(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psi(i);
+      end
+      ynorig(in)=sum(prod);
+      
+       % calculation of error of only llwnn
+      errnorig(in)=tabletest(in,8)-ynorig(in);
+      errnsqorig(in)=(errnorig(in))^2;
+      mapenorig(in)=((abs((errnorig(in))/(tabletest(in,8))))*100);
+      
+       %calculating sigma products before applying basis function of
+      %neurofuzzy part
+       for i=1:wls
+       sigma(i)=w1(i,1)+(w1(i,2:8))*((tabletest(in,1:7))');
+       end
+       d=sum((tabletest(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-b1(i))/(a1(i)));
+          inside=(dsq-c1(i))/(si1(i));
+          insq=(inside)^2;
+          psi(i)=((abs((a1(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psi(i);
+      end
+      yn1(in)=sum(prod);
+       
+      % calculating sigma products before applying basis function
+       for i=1:wls
+       sigma(i)=w2(i,1)+(w2(i,2:8))*((tabletest(in,1:7))');
+       end
+       d=sum((tabletest(in,1:7)).^2);
+       dsq=sqrt(d);
+      %calculation of the psi's
+      for i=1:wls
+          modi(i)=((dsq-b2(i))/(a2(i)));
+          inside=(dsq-c2(i))/(si2(i));
+          insq=(inside)^2;
+          psi(i)=((abs((a2(i))))^(-1/2))*exp(-1*insq);
+      end
+      % calculation of the final output
+      for i=1:wls
+          prod(i)=sigma(i)*psi(i);
+      end
+      yn2(in)=sum(prod);
+      
+      % FUZZY part
+      
+      x(1:7)=tabletest(in,1:7);
+%       x1f1(in)=exp((-1)*((x(1)-cfzh(1))^2)/((sifzh(1))^2)); % c1 to c12, si1 to si12 all random
+%       x1f2(in)=exp((-1)*((x(1)-cfzl(1))^2)/((sifzl(1))^2)); % or 1 - above
+%       x2f1(in)=exp((-1)*((x(2)-cfzh(2))^2)/((sifzh(2))^2));
+%       x2f2(in)=exp((-1)*((x(2)-cfzl(2))^2)/((sifzl(2))^2));
+%       x3f1(in)=exp((-1)*((x(3)-cfzh(3))^2)/((sifzh(3))^2));
+%       x3f2(in)=exp((-1)*((x(3)-cfzl(3))^2)/((sifzl(3))^2));
+%       x4f1(in)=exp((-1)*((x(4)-cfzh(4))^2)/((sifzh(4))^2));
+%       x4f2(in)=exp((-1)*((x(4)-cfzl(4))^2)/((sifzl(4))^2));
+%       x5f1(in)=exp((-1)*((x(5)-cfzh(5))^2)/((sifzh(5))^2));
+%       x5f2(in)=exp((-1)*((x(5)-cfzl(5))^2)/((sifzl(5))^2));
+%       x6f1(in)=exp((-1)*((x(6)-cfzh(6))^2)/((sifzh(6))^2));
+%       x6f2(in)=exp((-1)*((x(6)-cfzl(6))^2)/((sifzl(6))^2));
+%       x7f1(in)=exp((-1)*((x(7)-cfzh(7))^2)/((sifzh(7))^2));
+%       x7f2(in)=exp((-1)*((x(7)-cfzl(7))^2)/((sifzl(7))^2));
+
+      x1f1(in)=exp((-1)*((x(1)-cfz(1))^2)/((sifz(1))^2)); 
+      x1f2(in)=1-exp((-1)*((x(1)-cfz(2))^2)/((sifz(2))^2));
+      x2f1(in)=exp((-1)*((x(2)-cfz(3))^2)/((sifz(3))^2));
+      x2f2(in)=1-exp((-1)*((x(2)-cfz(4))^2)/((sifz(4))^2));
+      x3f1(in)=exp((-1)*((x(3)-cfz(5))^2)/((sifz(5))^2));
+      x3f2(in)=1-exp((-1)*((x(3)-cfz(6))^2)/((sifz(6))^2));
+      x4f1(in)=exp((-1)*((x(4)-cfz(7))^2)/((sifz(7))^2));
+      x4f2(in)=1-exp((-1)*((x(4)-cfz(8))^2)/((sifz(8))^2));
+      x5f1(in)=exp((-1)*((x(5)-cfz(9))^2)/((sifz(9))^2));
+      x5f2(in)=1-exp((-1)*((x(5)-cfz(10))^2)/((sifz(10))^2));
+      x6f1(in)=exp((-1)*((x(6)-cfz(11))^2)/((sifz(11))^2));
+      x6f2(in)=1-exp((-1)*((x(6)-cfz(12))^2)/((sifz(12))^2));
+      x7f1(in)=exp((-1)*((x(7)-cfz(13))^2)/((sifz(13))^2));
+      x7f2(in)=1-exp((-1)*((x(7)-cfz(14))^2)/((sifz(14))^2));
+
+      
+      pf1(in)=min([x1f1(in) x2f1(in) x3f1(in) x4f1(in) x5f1(in) x6f1(in) x7f1(in)]);
+      pf2(in)=min([x1f2(in) x2f2(in) x3f2(in) x4f2(in) x5f2(in) x6f2(in) x7f2(in)]);
+      
+      Ynnet1(in)=pf1(in)*yn1(in);
+      Ynnet2(in)=pf2(in)*yn2(in);
+      Ynnet(in)=Ynnet1(in)+Ynnet2(in);
+      Ynnet(in)=Ynnet(in)/(pf1(in)+pf2(in));
+      
+      % calculation of error of the system as a whole
+     errntot(in)=tabletest(in,8)-Ynnet(in);
+     errnsqtot(in)=((errntot(in))^2);
+     mapentot(in)=(abs((errntot(in))/(tabletest(in,8))))*100;
+      end
+     msepnorig=sqrt((sum(errnsqorig))/t);
+     mapepnorig=((sum(mapenorig)))/t;
+     msepntot=sqrt((sum(errnsqtot))/t);
+     mapepntot=((sum(mapentot)))/t;
+     
+     % plotting results of testing part
+     figure
+plot(datan)
+title(' Exchange rate :www.oanda.com: Testing data');
+ylabel('Normalized data value');
+xlabel('No of testing patterns');
+
+figure
+hold on
+plot(ynorig,'k');
+plot(Ynnet,'b');
+plot(tabletest(1:t,8), 'r');
+title( ' Comparision of estimated values wrt Normalized data set: Prediction 1 day ahead' );
+legend('llwnn output','llwnn+neurofuzzy output','original output');
+ylabel('Normalized data value');
+xlabel('No of testing patterns');
+hold off
+
+ figure
+ hold on
+ plot(errnorig,'b');
+ plot(errntot,'r');
+ legend('llwnn error', 'llwnn + neurofuzzy error');
+ title(' error : Prediction: 1 day ahead ');
+ ylabel('magnitude');
+ xlabel('No of testing patterns');
+ hold off
+ toc
+ 

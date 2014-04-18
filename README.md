@@ -1,4 +1,4 @@
-Time-Series-Forecasting-Basic-version
+Forex Forecasting:
 =====================================
 
 A Matlab code repository describing the basic models applied towards time series forecasting. The standard process of 
